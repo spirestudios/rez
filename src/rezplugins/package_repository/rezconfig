@@ -3,7 +3,8 @@ filesystem:
     # use hardlinks if the 'os.link' method is present, otherwise mkdir is used.
     # It can also be explicitly set to use only 'hardlink', or only 'mkdir'.
     # Valid options are 'default', 'mkdir', or 'hardlink'
-    file_lock_type: default
+    # SE-1101 lucidlink does not support hardlinks
+    file_lock_type: mkdir
 
     # The timeout to use when creating file locks. This is done when a variant is
     # installed into an existing package, to prevent multiple file writes at
