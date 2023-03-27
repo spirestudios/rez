@@ -13,7 +13,7 @@ from rez.system import system
 from rez.utils.lint_helper import env
 from rez.utils.platform_ import platform_
 import shutil
-import os.path
+import os
 
 
 def setup_parser(parser):
@@ -23,19 +23,23 @@ def setup_parser(parser):
 
 
 def commands():
-    env.PATH.append('{this.root}/bin')
+    noop = intersects(ephemerals.get_range('dcc_python', '0'), '1')
+    if not noop:
+        env.PATH.append('{this.root}/bin')
 
 
 def post_commands():
-    # these are the builtin modules for this python executable. If we don't
-    # include these, some python behavior can be incorrect.
-    import os
-    import os.path
-
-    path = os.path.join(this.root, "python")  # noqa
-    for dirname in os.listdir(path):
-        path_ = os.path.join(path, dirname)
-        env.PYTHONPATH.append(path_)
+    noop = intersects(ephemerals.get_range('dcc_python', '0'), '1')
+    if not noop:
+        # these are the builtin modules for this python executable. If we don't
+        # include these, some python behavior can be incorrect.
+        import os
+        import os.path
+    
+        path = os.path.join(this.root, "python")  # noqa
+        for dirname in os.listdir(path):
+            path_ = os.path.join(path, dirname)
+            env.PYTHONPATH.append(path_)
 
 
 def bind(path, version_range=None, opts=None, parser=None):
@@ -49,13 +53,14 @@ def bind(path, version_range=None, opts=None, parser=None):
 
     # find builtin modules
     builtin_paths = {}
-    entries = [("lib", "os"),
+    entries = [("lib", "os"), 
                ("extra", "setuptools")]
 
     for dirname, module_name in entries:
         success, out, err = run_python_command([
             "import %s" % module_name,
-            "print(%s.__file__)" % module_name])
+            "print(%s.__file__)" % module_name],
+            exepath)
 
         if success:
             pypath = os.path.dirname(out)
@@ -65,13 +70,23 @@ def bind(path, version_range=None, opts=None, parser=None):
             if pypath not in builtin_paths.values():
                 builtin_paths[dirname] = pypath
 
+    # add DLLs
+    basedir = os.path.dirname(exepath)
+    if platform_.name == "windows":
+        builtin_paths["DLLs"] = "%s/%s" % (basedir, "DLLs")
+
     # make the package
     #
 
     def make_root(variant, root):
         binpath = make_dirs(root, "bin")
-        link = os.path.join(binpath, "python")
-        platform_.symlink(exepath, link)
+
+        # vanilla rez symlinks the python exe but that didn't work on windows
+        # so we copy the exe along with all the other files in the base dir
+        for item in os.listdir(basedir):
+            fullpath = os.path.join(basedir, item)
+            if os.path.isfile(fullpath):
+                shutil.copy(fullpath, binpath)
 
         if builtin_paths:
             pypath = make_dirs(root, "python")
