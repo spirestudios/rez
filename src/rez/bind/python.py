@@ -29,13 +29,14 @@ def commands():
 
 
 def post_commands():
+    # these are the builtin modules for this python executable. If we don't
+    # include these, some python behavior can be incorrect.
+    import os
+    import os.path
+
     noop = intersects(ephemerals.get_range('dcc_python', '0'), '1')
     if not noop:
-        # these are the builtin modules for this python executable. If we don't
-        # include these, some python behavior can be incorrect.
-        import os
-        import os.path
-    
+
         path = os.path.join(this.root, "python")  # noqa
         for dirname in os.listdir(path):
             path_ = os.path.join(path, dirname)
